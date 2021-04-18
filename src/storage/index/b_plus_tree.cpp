@@ -268,15 +268,14 @@ void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node, const KeyType &ke
   if (parent_tree_page->GetSize() < parent_tree_page->GetMaxSize()) {
     parent_tree_page->InsertNodeAfter(old_node->GetPageId(), key, new_node->GetPageId());
   } else {
-    reinterpret_cast<Page *>(old_node)->WUnlatch();
     InternalPage *sibling_tree_page = Split(parent_tree_page);
-    reinterpret_cast<Page *>(old_node)->WLatch();
 
     Page *sibling_page = reinterpret_cast<Page *>(sibling_tree_page);
 
     if (auto current_size = parent_tree_page->GetSize();
         parent_tree_page->InsertNodeAfter(old_node->GetPageId(), key, new_node->GetPageId()) == current_size) {
       sibling_tree_page->InsertNodeAfter(old_node->GetPageId(), key, new_node->GetPageId());
+      new_node->SetParentPageId(sibling_tree_page->GetPageId());
     }
 
     InsertIntoParent(parent_tree_page, sibling_tree_page->KeyAt(0), sibling_tree_page, transaction);

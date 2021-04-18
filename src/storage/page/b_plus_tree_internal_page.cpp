@@ -148,10 +148,9 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyNFrom(MappingType *items, int size, Buf
     Page *page = buffer_pool_manager->FetchPage(page_id);
     if (page == nullptr)
       throw Exception(ExceptionType::OUT_OF_MEMORY, "B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyNFrom out of memory");
-    page->WLatch();
+    // not acquire write latch since no contention in setting parent page id
     BPlusTreePage *tree_page = reinterpret_cast<BPlusTreePage *>(page->GetData());
     tree_page->SetParentPageId(GetPageId());
-    page->WUnlatch();
     buffer_pool_manager->UnpinPage(page_id, true);
   }
   SetSize(size);

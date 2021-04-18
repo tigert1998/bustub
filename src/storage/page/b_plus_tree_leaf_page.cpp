@@ -52,7 +52,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::SetNextPageId(page_id_t next_page_id) { next_pa
 INDEX_TEMPLATE_ARGUMENTS
 int B_PLUS_TREE_LEAF_PAGE_TYPE::KeyIndex(const KeyType &key, const KeyComparator &comparator) const {
   int l = 0, r = GetSize() - 1;
-  if (comparator(KeyAt(r), key) < 0) {
+  if (GetSize() == 0 || comparator(KeyAt(r), key) < 0) {
     return GetSize();
   }
   while (l < r) {
@@ -91,7 +91,7 @@ const MappingType &B_PLUS_TREE_LEAF_PAGE_TYPE::GetItem(int index) { return array
 INDEX_TEMPLATE_ARGUMENTS
 int B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator) {
   auto idx = KeyIndex(key, comparator);
-  if (comparator(KeyAt(idx), key) == 0) return GetSize();
+  if (idx < GetSize() && comparator(KeyAt(idx), key) == 0) return GetSize();
   for (int i = GetSize() - 1; i >= idx; i--) {
     array[i + 1] = array[i];
   }
