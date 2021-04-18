@@ -13,7 +13,7 @@ namespace bustub {
  */
 INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::IndexIterator(Page *page, int key_index, BufferPoolManager *buffer_pool_manager)
-    : page_(page), key_index_(key_index), buffer_pool_manager_(buffer_pool_manager) {
+    : page_(page), key_index_(key_index), buffer_pool_manager_(buffer_pool_manager), is_end_(false) {
   if (page_ == nullptr || key_index_ < 0 || buffer_pool_manager_ == nullptr) {
     SetAsEnd();
   }
