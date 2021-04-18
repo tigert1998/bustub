@@ -10,6 +10,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include <atomic>
+#include <map>
 #include <queue>
 #include <string>
 #include <vector>
@@ -77,10 +79,10 @@ class BPlusTree {
   // read data from file and remove one by one
   void RemoveFromFile(const std::string &file_name, Transaction *transaction = nullptr);
   // expose for test purpose
-  Page *FindLeafPage(const KeyType &key, bool leftMost = false);
+  Page *FindLeafPage(const KeyType &key, bool left_most = false);
 
  private:
-  void StartNewTree(const KeyType &key, const ValueType &value);
+  bool StartNewTree(const KeyType &key, const ValueType &value);
 
   bool InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
 
@@ -102,7 +104,22 @@ class BPlusTree {
 
   bool AdjustRoot(BPlusTreePage *node);
 
-  void UpdateRootPageId(int insert_record = 0);
+  void UpdateRootPageId(bool insert_record = false);
+
+  enum class LatchMode { INSERT, DELETE, READ, UPDATE };
+
+  struct LatchRecord {
+    Page *page;
+    bool is_write;
+    void Latch();
+    void Unlatch();
+  };
+
+  using LatchRegistry = std::map<page_id_t, LatchRecord>;
+
+  static thread_local LatchRegistry latch_registry_;
+
+  Page *InternalFindLeafPage(const KeyType *key, bool left_most, LatchMode latch_mode);
 
   /* Debug Routines for FREE!! */
   void ToGraph(BPlusTreePage *page, BufferPoolManager *bpm, std::ofstream &out) const;
@@ -111,7 +128,7 @@ class BPlusTree {
 
   // member variable
   std::string index_name_;
-  page_id_t root_page_id_;
+  std::atomic<page_id_t> root_page_id_;
   BufferPoolManager *buffer_pool_manager_;
   KeyComparator comparator_;
   int leaf_max_size_;
