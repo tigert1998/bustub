@@ -121,6 +121,8 @@ class BPlusTree {
   static thread_local LatchRegistry latch_registry_;
   static thread_local DiscardedPages discarded_pages_;
 
+  void RegistryUnlatchAndUnpin(bool is_dirty);
+
   Page *InternalFindLeafPage(const KeyType *key, bool left_most, LatchMode latch_mode);
 
   /* Debug Routines for FREE!! */
