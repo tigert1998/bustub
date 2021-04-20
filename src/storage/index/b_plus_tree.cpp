@@ -307,8 +307,46 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {}
  */
 INDEX_TEMPLATE_ARGUMENTS
 template <typename N>
-bool BPLUSTREE_TYPE::CoalesceOrRedistribute(N *node, Transaction *transaction) {
-  return false;
+void BPLUSTREE_TYPE::CoalesceOrRedistribute(N *node, Transaction *transaction) {
+  if constexpr (std::is_same_v<N, InternalPage>) {
+    if (node->IsRootPage()) {
+      root_page_id_.store(node->RemoveAndReturnOnlyChild());
+      UpdateRootPageId(false);
+      discarded_pages_.push_back(node->GetPageId());
+      return;
+    }
+  }
+
+  Page *parent_page = latch_registry_[node->GetParentPageId()].page;
+  InternalPage *parent_tree_page = reinterpret_cast<InternalPage *>(parent_page->GetData());
+
+  int node_idx = parent_tree_page->ValueIndex(node->GetPageId());
+  int neighbor_idx;
+  if (node_idx < parent_tree_page->GetSize() - 1) {
+    neighbor_idx = node_idx + 1;
+  } else {
+    neighbor_idx = node_idx - 1;
+  }
+
+  Page *neighbor_page = buffer_pool_manager_->FetchPage(neighbor_idx);
+  neighbor_page->WLatch();
+  N *neighbor_tree_page = reinterpret_cast<N *>(neighbor_page->GetData());
+
+  int index = neighbor_idx < node_idx;
+
+  if (neighbor_tree_page->GetSize() + node->GetSize() <= node->GetMaxSize()) {
+    // merge
+    bool underflow = Coalesce(&neighbor_tree_page, &node, &parent_tree_page, index, transaction);
+    if (underflow) {
+      CoalesceOrRedistribute(parent_tree_page, transaction);
+    }
+  } else {
+    // redistribute
+    Redistribute(neighbor_tree_page, node, index);
+  }
+
+  neighbor_page->WUnlatch();
+  buffer_pool_manager_->UnpinPage(neighbor_page->GetPageId(), true);
 }
 
 /*
@@ -328,7 +366,33 @@ template <typename N>
 bool BPLUSTREE_TYPE::Coalesce(N **neighbor_node, N **node,
                               BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> **parent, int index,
                               Transaction *transaction) {
-  return false;
+  auto idx = (*parent)->ValueIndex(neighbor_node->GetPageId());
+
+  if (index == 0) {
+    // node, neighbor_node
+    if constexpr (std::is_same_v<N, LeafPage>) {
+      (*neighbor_node)->MoveAllTo(*node);
+    } else {
+      (*neighbor_node)->MoveAllTo(*node, (*parent)->KeyAt(idx), buffer_pool_manager_);
+    }
+    (*parent)->Remove(idx);
+    discarded_pages_.push_back((*neighbor_node)->GetPageId());
+  } else {
+    // neighbor_node, node
+    if constexpr (std::is_same_v<N, LeafPage>) {
+      (*node)->MoveAllTo(*neighbor_node);
+    } else {
+      (*node)->MoveAllTo(*neighbor_node, (*parent)->KeyAt(idx + 1), buffer_pool_manager_);
+    }
+    (*parent)->Remove(idx + 1);
+    discarded_pages_.push_back((*node)->GetPageId());
+  }
+
+  if ((*parent)->IsRootPage()) {
+    return (*parent)->GetSize() <= 1;
+  } else {
+    return (*parent)->GetSize() < (*parent)->GetMinSize();
+  }
 }
 
 /*
@@ -342,7 +406,31 @@ bool BPLUSTREE_TYPE::Coalesce(N **neighbor_node, N **node,
  */
 INDEX_TEMPLATE_ARGUMENTS
 template <typename N>
-void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node, int index) {}
+void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node, int index) {
+  Page *page = latch_registry_[node->GetPageId()].page;
+  InternalPage *parent_tree_page = reinterpret_cast<InternalPage *>(page->GetData());
+  auto idx = parent_tree_page->ValueIndex(neighbor_node->GetPageId());
+
+  if (index == 0) {
+    // node, neighbor_node
+    if constexpr (std::is_same_v<N, LeafPage>) {
+      neighbor_node->MoveFirstToEndOf(node);
+    } else {
+      auto middle_key = parent_tree_page->KeyAt(idx);
+      neighbor_node->MoveFirstToEndOf(node, middle_key, buffer_pool_manager_);
+      parent_tree_page->array[idx].first = neighbor_node->KeyAt(0);
+    }
+  } else {
+    // neighbor_node, node
+    if constexpr (std::is_same_v<N, LeafPage>) {
+      neighbor_node->MoveLastToFrontOf(node);
+    } else {
+      auto middle_key = neighbor_node->KeyAt(neighbor_node->GetSize() - 1);
+      neighbor_node->MoveLastToFrontOf(node, middle_key, buffer_pool_manager_);
+      parent_tree_page->array[idx + 1].first = middle_key;
+    }
+  }
+}
 /*
  * Update root page if necessary
  * NOTE: size of root page can be less than min size and this method is only

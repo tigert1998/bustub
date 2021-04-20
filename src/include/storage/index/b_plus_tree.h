@@ -93,7 +93,7 @@ class BPlusTree {
   N *Split(N *node);
 
   template <typename N>
-  bool CoalesceOrRedistribute(N *node, Transaction *transaction = nullptr);
+  void CoalesceOrRedistribute(N *node, Transaction *transaction = nullptr);
 
   template <typename N>
   bool Coalesce(N **neighbor_node, N **node, BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> **parent,
@@ -116,8 +116,10 @@ class BPlusTree {
   };
 
   using LatchRegistry = std::map<page_id_t, LatchRecord>;
+  using DiscardedPages = std::vector<page_id_t>;
 
   static thread_local LatchRegistry latch_registry_;
+  static thread_local DiscardedPages discarded_pages_;
 
   Page *InternalFindLeafPage(const KeyType *key, bool left_most, LatchMode latch_mode);
 
