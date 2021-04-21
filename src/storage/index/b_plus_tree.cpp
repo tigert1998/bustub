@@ -362,7 +362,13 @@ template <typename N>
 void BPLUSTREE_TYPE::CoalesceOrRedistribute(N *node, Transaction *transaction) {
   if constexpr (std::is_same_v<N, InternalPage>) {
     if (node->IsRootPage()) {
-      root_page_id_.store(node->RemoveAndReturnOnlyChild());
+      page_id_t new_root_page_id = node->RemoveAndReturnOnlyChild();
+      Page *new_root_page = buffer_pool_manager_->FetchPage(new_root_page_id);
+      BPlusTreePage *new_root_tree_page = reinterpret_cast<BPlusTreePage *>(new_root_page->GetData());
+      new_root_tree_page->SetParentPageId(INVALID_PAGE_ID);
+      buffer_pool_manager_->UnpinPage(new_root_page_id, true);
+
+      root_page_id_.store(new_root_page_id);
       UpdateRootPageId(false);
       discarded_pages_.push_back(node->GetPageId());
       return;
@@ -380,7 +386,10 @@ void BPLUSTREE_TYPE::CoalesceOrRedistribute(N *node, Transaction *transaction) {
     neighbor_idx = node_idx - 1;
   }
 
-  Page *neighbor_page = buffer_pool_manager_->FetchPage(neighbor_idx);
+  page_id_t neighbor_page_id = parent_tree_page->ValueAt(neighbor_idx);
+  Page *neighbor_page = buffer_pool_manager_->FetchPage(neighbor_page_id);
+  if (neighbor_page == nullptr)
+    throw Exception(ExceptionType::OUT_OF_MEMORY, "BPLUSTREE_TYPE::CoalesceOrRedistribute out of memory");
   neighbor_page->WLatch();
   N *neighbor_tree_page = reinterpret_cast<N *>(neighbor_page->GetData());
 
@@ -459,28 +468,28 @@ bool BPLUSTREE_TYPE::Coalesce(N **neighbor_node, N **node,
 INDEX_TEMPLATE_ARGUMENTS
 template <typename N>
 void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node, int index) {
-  Page *page = latch_registry_[node->GetPageId()].page;
-  InternalPage *parent_tree_page = reinterpret_cast<InternalPage *>(page->GetData());
+  Page *parent_page = latch_registry_[node->GetParentPageId()].page;
+  InternalPage *parent_tree_page = reinterpret_cast<InternalPage *>(parent_page->GetData());
   auto idx = parent_tree_page->ValueIndex(neighbor_node->GetPageId());
 
   if (index == 0) {
     // node, neighbor_node
+    auto middle_key = parent_tree_page->KeyAt(idx);
     if constexpr (std::is_same_v<N, LeafPage>) {
       neighbor_node->MoveFirstToEndOf(node);
     } else {
-      auto middle_key = parent_tree_page->KeyAt(idx);
       neighbor_node->MoveFirstToEndOf(node, middle_key, buffer_pool_manager_);
-      parent_tree_page->SetKeyAt(idx, neighbor_node->KeyAt(0));
     }
+    parent_tree_page->SetKeyAt(idx, neighbor_node->KeyAt(0));
   } else {
     // neighbor_node, node
+    auto middle_key = neighbor_node->KeyAt(neighbor_node->GetSize() - 1);
     if constexpr (std::is_same_v<N, LeafPage>) {
       neighbor_node->MoveLastToFrontOf(node);
     } else {
-      auto middle_key = neighbor_node->KeyAt(neighbor_node->GetSize() - 1);
       neighbor_node->MoveLastToFrontOf(node, middle_key, buffer_pool_manager_);
-      parent_tree_page->SetKeyAt(idx + 1, middle_key);
     }
+    parent_tree_page->SetKeyAt(idx + 1, middle_key);
   }
 }
 /*
