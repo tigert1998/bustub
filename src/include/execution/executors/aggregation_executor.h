@@ -196,8 +196,9 @@ class AggregationExecutor : public AbstractExecutor {
   /** The child executor whose tuples we are aggregating. */
   std::unique_ptr<AbstractExecutor> child_;
   /** Simple aggregation hash table. */
-  // Uncomment me! SimpleAggregationHashTable aht_;
+  SimpleAggregationHashTable aht_;
   /** Simple aggregation hash table iterator. */
-  // Uncomment me! SimpleAggregationHashTable::Iterator aht_iterator_;
+  std::unique_ptr<SimpleAggregationHashTable::Iterator> aht_iterator_;
+  std::vector<std::pair<int, int>> attrs_;
 };
 }  // namespace bustub
