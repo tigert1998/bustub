@@ -91,9 +91,8 @@ class Catalog {
   TableMetadata *GetTable(const std::string &table_name) {
     if (names_.count(table_name) == 0) {
       return nullptr;
-    } else {
-      return GetTable(names_[table_name]);
     }
+    return GetTable(names_[table_name]);
   }
 
   /** @return table metadata by oid */

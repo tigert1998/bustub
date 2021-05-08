@@ -157,13 +157,12 @@ bool BPLUSTREE_TYPE::InsertIntoLeaf(const KeyType &key, const ValueType &value, 
   auto try_insert_in_leaf = [&]() -> int {
     int ret = -1;
 
-    // try to insert if page is not full
     if (auto current_size = leaf_page->GetSize(); current_size < leaf_page->GetMaxSize()) {
+      // try to insert if page is not full
       ret = leaf_page->Insert(key, value, comparator_) > current_size;
-    }
-    // key already exists
-    else if (int idx = leaf_page->KeyIndex(key, this->comparator_);
-             this->comparator_(key, leaf_page->KeyAt(idx)) == 0) {
+    } else if (int idx = leaf_page->KeyIndex(key, this->comparator_);
+               this->comparator_(key, leaf_page->KeyAt(idx)) == 0) {
+      // key already exists
       ret = 0;
     }
 
@@ -312,13 +311,12 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
     int current_size = leaf_page->GetSize();
     int min_size = leaf_page->IsRootPage() ? 0 : leaf_page->GetMinSize();
 
-    // try to delete if page will not underflow
     if (current_size > min_size) {
+      // try to delete if page will not underflow
       ret = leaf_page->RemoveAndDeleteRecord(key, comparator_) < current_size;
-    }
-    // key does not exist
-    else if (int idx = leaf_page->KeyIndex(key, this->comparator_);
-             this->comparator_(key, leaf_page->KeyAt(idx)) != 0) {
+    } else if (int idx = leaf_page->KeyIndex(key, this->comparator_);
+               this->comparator_(key, leaf_page->KeyAt(idx)) != 0) {
+      // key does not exist
       ret = 0;
     }
 
