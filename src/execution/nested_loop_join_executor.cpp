@@ -44,11 +44,10 @@ bool NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) {
       if (ret) {
         std::vector<Value> values;
         values.reserve(GetOutputSchema()->GetColumnCount());
-        for (size_t i = 0; i < left_executor_->GetOutputSchema()->GetColumnCount(); i++) {
-          values.push_back(current_left_tuple_.GetValue(left_executor_->GetOutputSchema(), i));
-        }
-        for (size_t i = 0; i < right_executor_->GetOutputSchema()->GetColumnCount(); i++) {
-          values.push_back(right_tuple.GetValue(right_executor_->GetOutputSchema(), i));
+        for (size_t i = 0; i < GetOutputSchema()->GetColumnCount(); i++) {
+          values.push_back(GetOutputSchema()->GetColumn(i).GetExpr()->EvaluateJoin(
+              &current_left_tuple_, left_executor_->GetOutputSchema(), &right_tuple,
+              right_executor_->GetOutputSchema()));
         }
         *tuple = Tuple(values, GetOutputSchema());
         return true;
