@@ -20,6 +20,7 @@ NestedLoopJoinExecutor::NestedLoopJoinExecutor(ExecutorContext *exec_ctx, const 
                                                std::unique_ptr<AbstractExecutor> &&left_executor,
                                                std::unique_ptr<AbstractExecutor> &&right_executor)
     : AbstractExecutor(exec_ctx),
+      plan_(plan),
       left_executor_(std::move(left_executor)),
       right_executor_(std::move(right_executor)) {}
 
@@ -35,9 +36,12 @@ bool NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) {
   RID right_rid;
   do {
     while (right_executor_->Next(&right_tuple, &right_rid)) {
-      auto ret = plan_->Predicate()->EvaluateJoin(&current_left_tuple_, plan_->GetLeftPlan()->OutputSchema(),
-                                                  &right_tuple, plan_->GetRightPlan()->OutputSchema());
-      if (ret.IsNull() || ret.GetAs<bool>()) {
+      auto predicate = plan_->Predicate();
+      auto ret = predicate == nullptr || predicate
+                                             ->EvaluateJoin(&current_left_tuple_, plan_->GetLeftPlan()->OutputSchema(),
+                                                            &right_tuple, plan_->GetRightPlan()->OutputSchema())
+                                             .GetAs<bool>();
+      if (ret) {
         std::vector<Value> values;
         values.reserve(GetOutputSchema()->GetColumnCount());
         for (size_t i = 0; i < left_executor_->GetOutputSchema()->GetColumnCount(); i++) {

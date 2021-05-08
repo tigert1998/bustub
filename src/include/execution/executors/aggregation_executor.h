@@ -199,6 +199,5 @@ class AggregationExecutor : public AbstractExecutor {
   SimpleAggregationHashTable aht_;
   /** Simple aggregation hash table iterator. */
   std::unique_ptr<SimpleAggregationHashTable::Iterator> aht_iterator_;
-  std::vector<std::pair<int, int>> attrs_;
 };
 }  // namespace bustub

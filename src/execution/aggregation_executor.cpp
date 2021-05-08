@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "execution/executors/aggregation_executor.h"
+#include "execution/expressions/aggregate_value_expression.h"
 
 namespace bustub {
 
@@ -21,21 +22,7 @@ AggregationExecutor::AggregationExecutor(ExecutorContext *exec_ctx, const Aggreg
     : AbstractExecutor(exec_ctx),
       plan_(plan),
       child_(std::move(child)),
-      aht_(plan->GetAggregates(), plan->GetAggregateTypes()) {
-  auto output_schema = GetOutputSchema();
-  auto &group_bys = plan_->GetGroupBys();
-  auto &aggregates = plan_->GetAggregates();
-  for (size_t i = 0; i < output_schema->GetColumnCount(); i++) {
-    auto expr = output_schema->GetColumn(i).GetExpr();
-    auto iter = std::find(group_bys.begin(), group_bys.end(), expr);
-    if (iter != group_bys.end()) {
-      attrs_.emplace_back(0, iter - group_bys.begin());
-      continue;
-    }
-    iter = std::find(aggregates.begin(), aggregates.end(), expr);
-    attrs_.emplace_back(1, iter - aggregates.begin());
-  }
-}
+      aht_(plan->GetAggregates(), plan->GetAggregateTypes()) {}
 
 const AbstractExecutor *AggregationExecutor::GetChildExecutor() const { return child_.get(); }
 
@@ -59,19 +46,17 @@ bool AggregationExecutor::Next(Tuple *tuple, RID *rid) {
     // aggregate
     auto value = aht_iterator_->Val();
 
-    std::vector<Value> values;
-    for (auto attr : attrs_) {
-      if (attr.first == 0) {
-        values.emplace_back(key.group_bys_[attr.second]);
-      } else {
-        values.emplace_back(value.aggregates_[attr.second]);
-      }
-    }
-    *tuple = Tuple(values, GetOutputSchema());
-    auto ret = plan_->GetHaving()->Evaluate(tuple, GetOutputSchema());
+    auto having = plan_->GetHaving();
+    bool ret = having == nullptr || having->EvaluateAggregate(key.group_bys_, value.aggregates_).GetAs<bool>();
 
     aht_iterator_->operator++();
-    if (ret.IsNull() || ret.GetAs<bool>()) {
+    if (ret) {
+      std::vector<Value> values;
+      for (size_t i = 0; i < GetOutputSchema()->GetColumnCount(); i++) {
+        values.emplace_back(
+            GetOutputSchema()->GetColumn(i).GetExpr()->EvaluateAggregate(key.group_bys_, value.aggregates_));
+      }
+      *tuple = Tuple(values, GetOutputSchema());
       return true;
     }
   }
