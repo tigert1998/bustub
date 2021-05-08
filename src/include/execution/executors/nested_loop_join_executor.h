@@ -53,6 +53,5 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
   Tuple current_left_tuple_;
   RID current_left_rid_;
   bool current_left_executor_ret_;
-  std::vector<std::pair<int, int>> attrs_;
 };
 }  // namespace bustub
