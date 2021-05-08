@@ -24,7 +24,9 @@ InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *
 }
 
 void InsertExecutor::Init() {
-  child_executor_->Init();
+  if (child_executor_ != nullptr) {
+    child_executor_->Init();
+  }
   next_raw_value_id_ = 0;
 }
 

@@ -121,8 +121,8 @@ class Catalog {
   IndexInfo *CreateIndex(Transaction *txn, const std::string &index_name, const std::string &table_name,
                          const Schema &schema, const Schema &key_schema, const std::vector<uint32_t> &key_attrs,
                          size_t keysize) {
-    auto index_metadata = std::make_unique<IndexMetadata>(index_name, table_name, &schema, key_attrs);
-    auto index = std::make_unique<BPLUSTREE_INDEX_TYPE>(index_metadata.get(), bpm_);
+    auto index_metadata = new IndexMetadata(index_name, table_name, &schema, key_attrs);
+    auto index = std::make_unique<BPLUSTREE_INDEX_TYPE>(index_metadata, bpm_);
     auto oid = next_index_oid_.fetch_add(1);
     auto index_info = std::make_unique<IndexInfo>(key_schema, index_name, std::move(index), oid, table_name, keysize);
 
