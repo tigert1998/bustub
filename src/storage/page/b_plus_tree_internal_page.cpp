@@ -48,8 +48,11 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::SetKeyAt(int index, const KeyType &key) { a
  */
 INDEX_TEMPLATE_ARGUMENTS
 int B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIndex(const ValueType &value) const {
-  for (int i = 0; i < GetSize(); i++)
-    if (array[i].second == value) return i;
+  for (int i = 0; i < GetSize(); i++) {
+    if (array[i].second == value) {
+      return i;
+    }
+  }
   return GetSize();
 }
 
@@ -73,7 +76,8 @@ ValueType B_PLUS_TREE_INTERNAL_PAGE_TYPE::Lookup(const KeyType &key, const KeyCo
   if (comparator(key, KeyAt(1)) < 0) {
     return ValueAt(0);
   }
-  int l = 1, r = GetSize() - 1;
+  int l = 1;
+  int r = GetSize() - 1;
   while (l < r) {
     int mid = (l + r + 1) >> 1;
     if (comparator(key, KeyAt(mid)) < 0) {
@@ -139,8 +143,9 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveHalfTo(BPlusTreeInternalPage *recipient
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Adopt(page_id_t page_id, BufferPoolManager *buffer_pool_manager) {
   Page *page = buffer_pool_manager->FetchPage(page_id);
-  if (page == nullptr)
+  if (page == nullptr) {
     throw Exception(ExceptionType::OUT_OF_MEMORY, "B_PLUS_TREE_INTERNAL_PAGE_TYPE::Adopt out of memory");
+  }
   // not acquire write latch since no contention in setting parent page id
   BPlusTreePage *tree_page = reinterpret_cast<BPlusTreePage *>(page->GetData());
   tree_page->SetParentPageId(GetPageId());
@@ -226,7 +231,9 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeInternalPage *rec
                                                       BufferPoolManager *buffer_pool_manager) {
   MappingType pair{middle_key, array[0].second};
   recipient->CopyLastFrom(pair, buffer_pool_manager);
-  for (int i = 1; i <= GetSize() - 1; i++) array[i - 1] = array[i];
+  for (int i = 1; i <= GetSize() - 1; i++) {
+    array[i - 1] = array[i];
+  }
   IncreaseSize(-1);
 }
 
@@ -261,7 +268,9 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeInternalPage *re
  */
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyFirstFrom(const MappingType &pair, BufferPoolManager *buffer_pool_manager) {
-  for (int i = GetSize() - 1; i >= 0; i--) array[i + 1] = array[i];
+  for (int i = GetSize() - 1; i >= 0; i--) {
+    array[i + 1] = array[i];
+  }
   array[0] = pair;
   Adopt(pair.second, buffer_pool_manager);
   IncreaseSize(1);

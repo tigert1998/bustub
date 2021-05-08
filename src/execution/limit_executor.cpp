@@ -24,7 +24,9 @@ void LimitExecutor::Init() {
 }
 
 bool LimitExecutor::Next(Tuple *tuple, RID *rid) {
-  if (total_ >= plan_->GetLimit()) return false;
+  if (total_ >= plan_->GetLimit()) {
+    return false;
+  }
   if (!child_executor_->Next(tuple, rid)) {
     return false;
   }

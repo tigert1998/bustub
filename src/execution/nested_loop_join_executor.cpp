@@ -31,7 +31,9 @@ void NestedLoopJoinExecutor::Init() {
 }
 
 bool NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) {
-  if (!current_left_executor_ret_) return false;
+  if (!current_left_executor_ret_) {
+    return false;
+  }
   Tuple right_tuple;
   RID right_rid;
   do {

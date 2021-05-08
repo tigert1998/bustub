@@ -75,9 +75,13 @@ Page *BufferPoolManager::FetchPageImpl(page_id_t page_id) {
 
 bool BufferPoolManager::UnpinPageImpl(page_id_t page_id, bool is_dirty) {
   std::unique_lock<std::mutex> guard(latch_);
-  if (page_table_.count(page_id) == 0) return false;
+  if (page_table_.count(page_id) == 0) {
+    return false;
+  }
   auto frame_id = page_table_[page_id];
-  if (pages_[frame_id].pin_count_ <= 0) return false;
+  if (pages_[frame_id].pin_count_ <= 0) {
+    return false;
+  }
 
   pages_[frame_id].pin_count_--;
   if (pages_[frame_id].pin_count_ == 0) {

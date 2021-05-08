@@ -26,23 +26,24 @@ void SeqScanExecutor::Init() {
 }
 
 bool SeqScanExecutor::Next(Tuple *tuple, RID *rid) {
-  while (1) {
-    if (*iter_ == table_metadata_->table_->End()) return false;
+  while (true) {
+    if (*iter_ == table_metadata_->table_->End()) {
+      return false;
+    }
     *tuple = **iter_;
     auto predicate = plan_->GetPredicate();
     bool res = predicate == nullptr || predicate->Evaluate(tuple, &table_metadata_->schema_).GetAs<bool>();
 
+    iter_->operator++();
     if (res) {
       *rid = tuple->GetRid();
       std::vector<Value> values;
-      for (size_t i = 0; i < GetOutputSchema()->GetColumnCount(); i++)
+      for (size_t i = 0; i < GetOutputSchema()->GetColumnCount(); i++) {
         values.push_back(GetOutputSchema()->GetColumn(i).GetExpr()->Evaluate(tuple, &table_metadata_->schema_));
+      }
       *tuple = Tuple(values, GetOutputSchema());
 
-      iter_->operator++();
       return true;
-    } else {
-      iter_->operator++();
     }
   }
   return false;

@@ -27,18 +27,20 @@ thread_local typename BPLUSTREE_TYPE::DiscardedPages BPLUSTREE_TYPE::discarded_p
 
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::LatchRecord::Latch() {
-  if (is_write)
+  if (is_write) {
     page->WLatch();
-  else
+  } else {
     page->RLatch();
+  }
 }
 
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::LatchRecord::Unlatch() {
-  if (is_write)
+  if (is_write) {
     page->WUnlatch();
-  else
+  } else {
     page->RUnlatch();
+  }
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -66,7 +68,9 @@ bool BPLUSTREE_TYPE::IsEmpty() const { return root_page_id_.load() == INVALID_PA
  */
 INDEX_TEMPLATE_ARGUMENTS
 bool BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction) {
-  if (IsEmpty()) return false;
+  if (IsEmpty()) {
+    return false;
+  }
 
   Page *page = FindLeafPage(key, false);
   LeafPage *leaf_page = reinterpret_cast<LeafPage *>(page);
@@ -126,9 +130,8 @@ bool BPLUSTREE_TYPE::StartNewTree(const KeyType &key, const ValueType &value) {
     root->WUnlatch();
     buffer_pool_manager_->UnpinPage(root_page_id_, true);
     return true;
-  } else {
-    throw Exception(ExceptionType::OUT_OF_MEMORY, "BPLUSTREE_TYPE::StartNewTree out of memory");
   }
+  throw Exception(ExceptionType::OUT_OF_MEMORY, "BPLUSTREE_TYPE::StartNewTree out of memory");
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -174,14 +177,18 @@ bool BPLUSTREE_TYPE::InsertIntoLeaf(const KeyType &key, const ValueType &value, 
   };
 
   int ret = try_insert_in_leaf();
-  if (ret >= 0) return ret;
+  if (ret >= 0) {
+    return ret != 0;
+  }
 
   RegistryUnlatchAndUnpin(false);
   page = InternalFindLeafPage(&key, false, LatchMode::INSERT);
   leaf_page = reinterpret_cast<LeafPage *>(page->GetData());
 
   ret = try_insert_in_leaf();
-  if (ret >= 0) return ret;
+  if (ret >= 0) {
+    return ret != 0;
+  }
 
   LeafPage *new_page = Split(leaf_page);
   InsertIntoParent(leaf_page, new_page->KeyAt(0), new_page);
@@ -211,7 +218,9 @@ template <typename N>
 N *BPLUSTREE_TYPE::Split(N *node) {
   page_id_t page_id;
   Page *page = buffer_pool_manager_->NewPage(&page_id);
-  if (page == nullptr) throw Exception(ExceptionType::OUT_OF_MEMORY, "BPLUSTREE_TYPE::Split out of memory");
+  if (page == nullptr) {
+    throw Exception(ExceptionType::OUT_OF_MEMORY, "BPLUSTREE_TYPE::Split out of memory");
+  }
   page->WLatch();
 
   N *sibling = reinterpret_cast<N *>(page->GetData());
@@ -245,8 +254,9 @@ void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node, const KeyType &ke
   if (parent_page_id == INVALID_PAGE_ID) {
     page_id_t new_root_page_id;
     Page *page = buffer_pool_manager_->NewPage(&new_root_page_id);
-    if (page == nullptr)
+    if (page == nullptr) {
       throw Exception(ExceptionType::OUT_OF_MEMORY, "BPLUSTREE_TYPE::InsertIntoParent out of memory");
+    }
 
     page->WLatch();
     InternalPage *internal_page = reinterpret_cast<InternalPage *>(page->GetData());
@@ -300,7 +310,9 @@ void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node, const KeyType &ke
  */
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
-  if (IsEmpty()) return;
+  if (IsEmpty()) {
+    return;
+  }
 
   Page *page = InternalFindLeafPage(&key, false, LatchMode::UPDATE);
   LeafPage *leaf_page = reinterpret_cast<LeafPage *>(page->GetData());
@@ -328,14 +340,18 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
   };
 
   int ret = try_delete_in_leaf();
-  if (ret >= 0) return;
+  if (ret >= 0) {
+    return;
+  }
 
   RegistryUnlatchAndUnpin(false);
   page = InternalFindLeafPage(&key, false, LatchMode::DELETE);
   leaf_page = reinterpret_cast<LeafPage *>(page->GetData());
 
   ret = try_delete_in_leaf();
-  if (ret >= 0) return;
+  if (ret >= 0) {
+    return;
+  }
 
   leaf_page->RemoveAndDeleteRecord(key, comparator_);
   discarded_pages_.clear();
@@ -386,8 +402,9 @@ void BPLUSTREE_TYPE::CoalesceOrRedistribute(N *node, Transaction *transaction) {
 
   page_id_t neighbor_page_id = parent_tree_page->ValueAt(neighbor_idx);
   Page *neighbor_page = buffer_pool_manager_->FetchPage(neighbor_page_id);
-  if (neighbor_page == nullptr)
+  if (neighbor_page == nullptr) {
     throw Exception(ExceptionType::OUT_OF_MEMORY, "BPLUSTREE_TYPE::CoalesceOrRedistribute out of memory");
+  }
   neighbor_page->WLatch();
   N *neighbor_tree_page = reinterpret_cast<N *>(neighbor_page->GetData());
 
@@ -449,9 +466,8 @@ bool BPLUSTREE_TYPE::Coalesce(N **neighbor_node, N **node,
 
   if ((*parent)->IsRootPage()) {
     return (*parent)->GetSize() <= 1;
-  } else {
-    return (*parent)->GetSize() < (*parent)->GetMinSize();
   }
+  return (*parent)->GetSize() < (*parent)->GetMinSize();
 }
 
 /*
@@ -472,10 +488,10 @@ void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node, int index) {
 
   if (index == 0) {
     // node, neighbor_node
-    auto middle_key = parent_tree_page->KeyAt(idx);
     if constexpr (std::is_same_v<N, LeafPage>) {
       neighbor_node->MoveFirstToEndOf(node);
     } else {
+      auto middle_key = parent_tree_page->KeyAt(idx);
       neighbor_node->MoveFirstToEndOf(node, middle_key, buffer_pool_manager_);
     }
     parent_tree_page->SetKeyAt(idx, neighbor_node->KeyAt(0));
@@ -552,7 +568,9 @@ Page *BPLUSTREE_TYPE::FindLeafPage(const KeyType &key, bool left_most) {
 
 INDEX_TEMPLATE_ARGUMENTS
 Page *BPLUSTREE_TYPE::InternalFindLeafPage(const KeyType *key, bool left_most, LatchMode latch_mode) {
-  if (IsEmpty()) return nullptr;
+  if (IsEmpty()) {
+    return nullptr;
+  }
 
   auto next_page_id = root_page_id_.load();
 
@@ -560,11 +578,12 @@ Page *BPLUSTREE_TYPE::InternalFindLeafPage(const KeyType *key, bool left_most, L
 
   bool first_round = true;
 
-  while (1) {
+  while (true) {
   retry_first_round:
     Page *page = buffer_pool_manager_->FetchPage(next_page_id);
-    if (page == nullptr)
+    if (page == nullptr) {
       throw Exception(ExceptionType::OUT_OF_MEMORY, "BPLUSTREE_TYPE::InternalFindLeafPage out of memory");
+    }
     BPlusTreePage *tree_page = reinterpret_cast<BPlusTreePage *>(page->GetData());
 
     LatchRecord latch_record;

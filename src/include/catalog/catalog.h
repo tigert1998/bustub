@@ -100,9 +100,8 @@ class Catalog {
     auto iter = tables_.find(table_oid);
     if (iter != tables_.end()) {
       return iter->second.get();
-    } else {
-      return nullptr;
     }
+    return nullptr;
   }
 
   /**
@@ -145,22 +144,20 @@ class Catalog {
     auto iter = indexes_.find(index_oid);
     if (iter != indexes_.end()) {
       return iter->second.get();
-    } else {
-      return nullptr;
     }
+    return nullptr;
   }
 
   std::vector<IndexInfo *> GetTableIndexes(const std::string &table_name) {
     auto ans = std::vector<IndexInfo *>();
     if (index_names_.count(table_name) == 0) {
       return ans;
-    } else {
-      auto &index_names = index_names_[table_name];
-      for (auto pair : index_names) {
-        ans.push_back(GetIndex(pair.second));
-      }
-      return ans;
     }
+    auto &index_names = index_names_[table_name];
+    for (const auto &pair : index_names) {
+      ans.push_back(GetIndex(pair.second));
+    }
+    return ans;
   }
 
  private:

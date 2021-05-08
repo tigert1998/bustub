@@ -47,19 +47,19 @@ bool InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
   if (plan_->IsRawInsert()) {
     if (next_raw_value_id_ == plan_->RawValues().size()) {
       return false;
-    } else {
-      auto raw_value = plan_->RawValuesAt(next_raw_value_id_);
-      Tuple tuple(raw_value, &table_metadata_->schema_);
-      InternalInsertTuple(tuple, rid);
-      next_raw_value_id_++;
-      return true;
     }
-  } else {
-    RID dummy_rid;
-    if (!child_executor_->Next(tuple, &dummy_rid)) return false;
-    InternalInsertTuple(*tuple, rid);
+    auto raw_value = plan_->RawValuesAt(next_raw_value_id_);
+    Tuple tuple(raw_value, &table_metadata_->schema_);
+    InternalInsertTuple(tuple, rid);
+    next_raw_value_id_++;
     return true;
   }
+  RID dummy_rid;
+  if (!child_executor_->Next(tuple, &dummy_rid)) {
+    return false;
+  }
+  InternalInsertTuple(*tuple, rid);
+  return true;
 }
 
 }  // namespace bustub

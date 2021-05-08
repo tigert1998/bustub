@@ -29,14 +29,18 @@ bool LRUReplacer::Victim(frame_id_t *frame_id) {
 }
 
 void LRUReplacer::Pin(frame_id_t frame_id) {
-  if (id_to_iter_.count(frame_id) == 0) return;
+  if (id_to_iter_.count(frame_id) == 0) {
+    return;
+  }
   auto iter = id_to_iter_[frame_id];
   potential_victims_.erase(iter);
   id_to_iter_.erase(frame_id);
 }
 
 void LRUReplacer::Unpin(frame_id_t frame_id) {
-  if (id_to_iter_.count(frame_id) >= 1) return;
+  if (id_to_iter_.count(frame_id) >= 1) {
+    return;
+  }
   potential_victims_.push_front(frame_id);
   id_to_iter_[frame_id] = potential_victims_.begin();
 }
