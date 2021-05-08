@@ -226,11 +226,12 @@ N *BPLUSTREE_TYPE::Split(N *node) {
   N *sibling = reinterpret_cast<N *>(page->GetData());
   sibling->Init(page_id, node->GetParentPageId(), node->GetMaxSize());
 
+  // NOLINTNEXTLINE
   if constexpr (std::is_same_v<N, LeafPage>) {
     node->MoveHalfTo(sibling);
     sibling->SetNextPageId(node->GetNextPageId());
     node->SetNextPageId(page_id);
-  } else {
+  } else {  // NOLINT
     node->MoveHalfTo(sibling, buffer_pool_manager_);
   }
 
@@ -374,6 +375,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
 INDEX_TEMPLATE_ARGUMENTS
 template <typename N>
 void BPLUSTREE_TYPE::CoalesceOrRedistribute(N *node, Transaction *transaction) {
+  // NOLINTNEXTLINE
   if constexpr (std::is_same_v<N, InternalPage>) {
     if (node->IsRootPage()) {
       page_id_t new_root_page_id = node->RemoveAndReturnOnlyChild();
@@ -446,18 +448,20 @@ bool BPLUSTREE_TYPE::Coalesce(N **neighbor_node, N **node,
 
   if (index == 0) {
     // node, neighbor_node
+    // NOLINTNEXTLINE
     if constexpr (std::is_same_v<N, LeafPage>) {
       (*neighbor_node)->MoveAllTo(*node);
-    } else {
+    } else {  // NOLINT
       (*neighbor_node)->MoveAllTo(*node, (*parent)->KeyAt(idx), buffer_pool_manager_);
     }
     (*parent)->Remove(idx);
     discarded_pages_.push_back((*neighbor_node)->GetPageId());
   } else {
     // neighbor_node, node
+    // NOLINTNEXTLINE
     if constexpr (std::is_same_v<N, LeafPage>) {
       (*node)->MoveAllTo(*neighbor_node);
-    } else {
+    } else {  // NOLINT
       (*node)->MoveAllTo(*neighbor_node, (*parent)->KeyAt(idx + 1), buffer_pool_manager_);
     }
     (*parent)->Remove(idx + 1);
@@ -488,9 +492,10 @@ void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node, int index) {
 
   if (index == 0) {
     // node, neighbor_node
+    // NOLINTNEXTLINE
     if constexpr (std::is_same_v<N, LeafPage>) {
       neighbor_node->MoveFirstToEndOf(node);
-    } else {
+    } else {  // NOLINT
       auto middle_key = parent_tree_page->KeyAt(idx);
       neighbor_node->MoveFirstToEndOf(node, middle_key, buffer_pool_manager_);
     }
@@ -498,9 +503,10 @@ void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node, int index) {
   } else {
     // neighbor_node, node
     auto middle_key = neighbor_node->KeyAt(neighbor_node->GetSize() - 1);
+    // NOLINTNEXTLINE
     if constexpr (std::is_same_v<N, LeafPage>) {
       neighbor_node->MoveLastToFrontOf(node);
-    } else {
+    } else {  // NOLINT
       neighbor_node->MoveLastToFrontOf(node, middle_key, buffer_pool_manager_);
     }
     parent_tree_page->SetKeyAt(idx + 1, middle_key);
