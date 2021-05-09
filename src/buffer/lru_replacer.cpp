@@ -19,6 +19,7 @@ LRUReplacer::LRUReplacer(size_t num_pages) {}
 LRUReplacer::~LRUReplacer() = default;
 
 bool LRUReplacer::Victim(frame_id_t *frame_id) {
+  std::unique_lock lock(mtx_);
   if (potential_victims_.empty()) {
     return false;
   }
@@ -29,6 +30,7 @@ bool LRUReplacer::Victim(frame_id_t *frame_id) {
 }
 
 void LRUReplacer::Pin(frame_id_t frame_id) {
+  std::unique_lock lock(mtx_);
   if (id_to_iter_.count(frame_id) == 0) {
     return;
   }
@@ -38,6 +40,7 @@ void LRUReplacer::Pin(frame_id_t frame_id) {
 }
 
 void LRUReplacer::Unpin(frame_id_t frame_id) {
+  std::unique_lock lock(mtx_);
   if (id_to_iter_.count(frame_id) >= 1) {
     return;
   }
@@ -45,6 +48,9 @@ void LRUReplacer::Unpin(frame_id_t frame_id) {
   id_to_iter_[frame_id] = potential_victims_.begin();
 }
 
-size_t LRUReplacer::Size() { return id_to_iter_.size(); }
+size_t LRUReplacer::Size() {
+  std::shared_lock lock(mtx_);
+  return id_to_iter_.size();
+}
 
 }  // namespace bustub

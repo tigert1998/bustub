@@ -14,6 +14,7 @@
 
 #include <list>
 #include <mutex>  // NOLINT
+#include <shared_mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -47,6 +48,7 @@ class LRUReplacer : public Replacer {
   size_t Size() override;
 
  private:
+  std::shared_mutex mtx_;
   std::list<frame_id_t> potential_victims_;
   std::unordered_map<frame_id_t, std::list<frame_id_t>::iterator> id_to_iter_;
 };
