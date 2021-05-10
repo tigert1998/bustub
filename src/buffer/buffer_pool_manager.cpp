@@ -171,8 +171,8 @@ void BufferPoolManager::FlushAllPagesImpl() {
 void BufferPoolManager::InternalFlushPage(frame_id_t frame_id) {
   if (pages_[frame_id].IsDirty()) {
     disk_manager_->WritePage(pages_[frame_id].GetPageId(), pages_[frame_id].GetData());
+    pages_[frame_id].is_dirty_ = false;
   }
-  pages_[frame_id].is_dirty_ = false;
 }
 
 }  // namespace bustub

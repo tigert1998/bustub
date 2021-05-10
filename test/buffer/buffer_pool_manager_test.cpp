@@ -141,4 +141,50 @@ TEST(BufferPoolManagerTest, SampleTest) {
   delete disk_manager;
 }
 
+TEST(BufferPoolManagerTest, RandomTest) {
+  const std::string db_name = "test.db";
+  const size_t buffer_pool_size = 5;
+
+  auto *disk_manager = new DiskManager(db_name);
+  auto *bpm = new BufferPoolManager(buffer_pool_size, disk_manager);
+
+  for (size_t i = 0; i < 100; i++) {
+    page_id_t page_id;
+    Page *page = bpm->NewPage(&page_id);
+    ASSERT_TRUE(page != nullptr);
+    bpm->UnpinPage(page_id, false);
+  }
+
+  char *data = new char[100 * PAGE_SIZE];
+  for (size_t i = 0; i < 100 * PAGE_SIZE; i++) {
+    data[i] = static_cast<char>(rand());
+  }
+
+  for (size_t i = 0; i < 100; i++) {
+    Page *page = bpm->FetchPage(i);
+    ASSERT_NE(page, nullptr);
+    page->WLatch();
+    memcpy(page->GetData(), data + i * PAGE_SIZE, PAGE_SIZE);
+    page->WUnlatch();
+    bpm->UnpinPage(i, true);
+  }
+
+  delete bpm;
+
+  bpm = new BufferPoolManager(buffer_pool_size, disk_manager);
+
+  for (size_t i = 0; i < 100; i++) {
+    Page *page = bpm->FetchPage(i);
+    ASSERT_NE(page, nullptr);
+    page->RLatch();
+    ASSERT_EQ(memcmp(page->GetData(), data + i * PAGE_SIZE, PAGE_SIZE), 0);
+    page->RUnlatch();
+    bpm->UnpinPage(i, false);
+  }
+
+  delete bpm;
+  delete[] data;
+  delete disk_manager;
+}
+
 }  // namespace bustub
