@@ -30,6 +30,7 @@ BufferPoolManager::BufferPoolManager(size_t pool_size, DiskManager *disk_manager
 }
 
 BufferPoolManager::~BufferPoolManager() {
+  FlushAllPagesImpl();
   delete[] pages_;
   delete replacer_;
 }

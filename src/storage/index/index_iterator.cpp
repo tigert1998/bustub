@@ -28,7 +28,7 @@ INDEXITERATOR_TYPE::~IndexIterator() {
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-bool INDEXITERATOR_TYPE::IsEnd() { return is_end_; }
+bool INDEXITERATOR_TYPE::isEnd() { return is_end_; }
 
 INDEX_TEMPLATE_ARGUMENTS
 void INDEXITERATOR_TYPE::SetAsEnd() {
