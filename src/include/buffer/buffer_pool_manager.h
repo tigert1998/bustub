@@ -170,6 +170,6 @@ class BufferPoolManager {
   std::mutex latch_;
 
  private:
-  void InternalFlushPage(frame_id_t frame_id);
+  void InternalFlushPage(frame_id_t frame_id, bool force);
 };
 }  // namespace bustub

@@ -60,7 +60,7 @@ Page *BufferPoolManager::FetchPageImpl(page_id_t page_id) {
     page_table_.erase(pages_[frame_id].GetPageId());
 
     // no need to acquire the wlatch of this page since no thread pins it
-    InternalFlushPage(frame_id);
+    InternalFlushPage(frame_id, false);
   } else {
     return nullptr;
   }
@@ -99,7 +99,7 @@ bool BufferPoolManager::FlushPageImpl(page_id_t page_id) {
   if (page_table_.count(page_id) >= 1) {
     auto frame_id = page_table_[page_id];
     pages_[frame_id].RLatch();
-    InternalFlushPage(frame_id);
+    InternalFlushPage(frame_id, true);
     pages_[frame_id].RUnlatch();
     return true;
   }
@@ -119,7 +119,7 @@ Page *BufferPoolManager::NewPageImpl(page_id_t *page_id) {
     free_list_.pop_front();
   } else if (replacer_->Victim(&frame_id)) {
     page_table_.erase(pages_[frame_id].GetPageId());
-    InternalFlushPage(frame_id);
+    InternalFlushPage(frame_id, false);
   } else {
     return nullptr;
   }
@@ -162,13 +162,13 @@ void BufferPoolManager::FlushAllPagesImpl() {
   for (auto kv : page_table_) {
     auto frame_id = kv.second;
     pages_[frame_id].RLatch();
-    InternalFlushPage(frame_id);
+    InternalFlushPage(frame_id, false);
     pages_[frame_id].RUnlatch();
   }
 }
 
-void BufferPoolManager::InternalFlushPage(frame_id_t frame_id) {
-  if (pages_[frame_id].IsDirty()) {
+void BufferPoolManager::InternalFlushPage(frame_id_t frame_id, bool force) {
+  if (pages_[frame_id].IsDirty() || force) {
     disk_manager_->WritePage(pages_[frame_id].GetPageId(), pages_[frame_id].GetData());
     pages_[frame_id].is_dirty_ = false;
   }
