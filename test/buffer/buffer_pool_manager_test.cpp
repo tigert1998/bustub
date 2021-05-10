@@ -169,6 +169,7 @@ TEST(BufferPoolManagerTest, RandomTest) {
     bpm->UnpinPage(i, true);
   }
 
+  bpm->FlushAllPages();
   delete bpm;
 
   bpm = new BufferPoolManager(buffer_pool_size, disk_manager);

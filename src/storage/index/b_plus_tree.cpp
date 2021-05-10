@@ -160,8 +160,8 @@ bool BPLUSTREE_TYPE::InsertIntoLeaf(const KeyType &key, const ValueType &value, 
   auto try_insert_in_leaf = [&]() -> int {
     int ret = -1;
 
-    if (auto current_size = leaf_page->GetSize(); current_size < leaf_page->GetMaxSize()) {
-      // try to insert if page is not full
+    if (auto current_size = leaf_page->GetSize(); current_size < leaf_page->GetMaxSize() - 1) {
+      // try to insert if the page does not need to split after insertion
       ret = leaf_page->Insert(key, value, comparator_) > current_size;
     } else if (int idx = leaf_page->KeyIndex(key, this->comparator_);
                this->comparator_(key, leaf_page->KeyAt(idx)) == 0) {
@@ -190,13 +190,9 @@ bool BPLUSTREE_TYPE::InsertIntoLeaf(const KeyType &key, const ValueType &value, 
     return ret != 0;
   }
 
+  leaf_page->Insert(key, value, comparator_);
   LeafPage *new_page = Split(leaf_page);
   InsertIntoParent(leaf_page, new_page->KeyAt(0), new_page);
-  if (comparator_(key, new_page->KeyAt(0)) < 0) {
-    leaf_page->Insert(key, value, comparator_);
-  } else {
-    new_page->Insert(key, value, comparator_);
-  }
 
   reinterpret_cast<Page *>(new_page)->WUnlatch();
   buffer_pool_manager_->UnpinPage(new_page->GetPageId(), true);
@@ -279,18 +275,11 @@ void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node, const KeyType &ke
   // parent page must already be in the buffer pool and be write latched
 
   InternalPage *parent_tree_page = reinterpret_cast<InternalPage *>(parent_page->GetData());
-  if (parent_tree_page->GetSize() < parent_tree_page->GetMaxSize()) {
-    parent_tree_page->InsertNodeAfter(old_node->GetPageId(), key, new_node->GetPageId());
-  } else {
+  parent_tree_page->InsertNodeAfter(old_node->GetPageId(), key, new_node->GetPageId());
+
+  if (parent_tree_page->GetSize() == parent_tree_page->GetMaxSize()) {
     InternalPage *sibling_tree_page = Split(parent_tree_page);
-
     Page *sibling_page = reinterpret_cast<Page *>(sibling_tree_page);
-
-    if (auto current_size = parent_tree_page->GetSize();
-        parent_tree_page->InsertNodeAfter(old_node->GetPageId(), key, new_node->GetPageId()) == current_size) {
-      sibling_tree_page->InsertNodeAfter(old_node->GetPageId(), key, new_node->GetPageId());
-      new_node->SetParentPageId(sibling_tree_page->GetPageId());
-    }
 
     InsertIntoParent(parent_tree_page, sibling_tree_page->KeyAt(0), sibling_tree_page, transaction);
 
@@ -614,7 +603,7 @@ Page *BPLUSTREE_TYPE::InternalFindLeafPage(const KeyType *key, bool left_most, L
     if (latch_mode == LatchMode::READ || latch_mode == LatchMode::UPDATE) {
       release_parents = true;
     } else if (latch_mode == LatchMode::INSERT) {
-      release_parents = tree_page->GetSize() < tree_page->GetMaxSize();
+      release_parents = tree_page->GetSize() < tree_page->GetMaxSize() - 1;
     } else if (latch_mode == LatchMode::DELETE) {
       release_parents = tree_page->GetSize() > tree_page->GetMinSize();
     }
