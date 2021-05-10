@@ -196,7 +196,9 @@ TEST(BPlusTreeTests, ConcurrentMixTest) {
 
   std::vector<int> keys(KEYS_PER_THREAD * N_THREADS);
   std::vector<int> delete_order(KEYS_PER_THREAD * N_THREADS);
-  for (int i = 0; i < KEYS_PER_THREAD * N_THREADS; i++) keys[i] = i;
+  for (int i = 0; i < KEYS_PER_THREAD * N_THREADS; i++) {
+    keys[i] = i;
+  }
 
   auto engine = std::default_random_engine(SEED);
   std::shuffle(keys.begin(), keys.end(), engine);
@@ -206,7 +208,7 @@ TEST(BPlusTreeTests, ConcurrentMixTest) {
     int base = i / KEYS_PER_THREAD * KEYS_PER_THREAD;
     if (std::uniform_real_distribution<>(0, 1)(engine) <= 0.8) {
       auto idx = std::uniform_int_distribution<>(base, i)(engine);
-      while (deleted_keys.count(keys[idx])) {
+      while (deleted_keys.count(keys[idx]) >= 1) {
         idx = std::uniform_int_distribution<>(base, i)(engine);
       }
       delete_order[i] = idx;
@@ -243,7 +245,9 @@ TEST(BPlusTreeTests, ConcurrentMixTest) {
         i);
   }
 
-  for (int i = 0; i < N_THREADS; i++) threads[i].join();
+  for (auto &thread : threads) {
+    thread.join();
+  }
 
   keys.clear();
   keys.reserve(N_THREADS * KEYS_PER_THREAD);
@@ -254,13 +258,13 @@ TEST(BPlusTreeTests, ConcurrentMixTest) {
     rids.clear();
     index_key.SetFromInteger(key);
 
-    if (deleted_keys.count(key)) {
+    if (deleted_keys.count(key) >= 1) {
       EXPECT_FALSE(tree.GetValue(index_key, &rids));
     } else {
       keys.push_back(key);
       EXPECT_TRUE(tree.GetValue(index_key, &rids));
       EXPECT_EQ(rids.size(), 1);
-      if (rids.size() > 0) {
+      if (!rids.empty()) {
         int64_t value = key & 0xFFFFFFFF;
         EXPECT_EQ(rids[0].GetSlotNum(), value);
       }
@@ -276,7 +280,9 @@ TEST(BPlusTreeTests, ConcurrentMixTest) {
           int64_t start_key = std::uniform_int_distribution<>(0, N_THREADS * KEYS_PER_THREAD - 1)(rd);
 
           int idx = 0;
-          while (keys[idx] < start_key) idx++;
+          while (keys[idx] < start_key) {
+            idx++;
+          }
 
           index_key.SetFromInteger(start_key);
           for (auto iterator = tree.Begin(index_key); iterator != tree.end(); ++iterator) {
@@ -292,7 +298,9 @@ TEST(BPlusTreeTests, ConcurrentMixTest) {
         i);
   }
 
-  for (int i = 0; i < N_THREADS; i++) threads[i].join();
+  for (auto &thread : threads) {
+    thread.join();
+  }
 
   bpm->UnpinPage(HEADER_PAGE_ID, true);
   delete key_schema;

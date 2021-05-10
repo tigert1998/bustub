@@ -28,7 +28,7 @@ INDEXITERATOR_TYPE::~IndexIterator() {
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-bool INDEXITERATOR_TYPE::IsEnd() { return is_end_; }
+bool INDEXITERATOR_TYPE::isEnd() { return is_end_; }
 
 INDEX_TEMPLATE_ARGUMENTS
 void INDEXITERATOR_TYPE::SetAsEnd() {
@@ -50,7 +50,9 @@ const MappingType &INDEXITERATOR_TYPE::operator*() {
 
 INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE &INDEXITERATOR_TYPE::operator++() {
-  if (is_end_) return *this;
+  if (is_end_) {
+    return *this;
+  }
   LeafPage *leaf_page = reinterpret_cast<LeafPage *>(page_->GetData());
 
   if (key_index_ < leaf_page->GetSize() - 1) {
@@ -64,7 +66,9 @@ INDEXITERATOR_TYPE &INDEXITERATOR_TYPE::operator++() {
     }
 
     Page *page = buffer_pool_manager_->FetchPage(next_page_id);
-    if (page == nullptr) throw Exception(ExceptionType::OUT_OF_MEMORY, "INDEXITERATOR_TYPE::operator++ out of memory");
+    if (page == nullptr) {
+      throw Exception(ExceptionType::OUT_OF_MEMORY, "INDEXITERATOR_TYPE::operator++ out of memory");
+    }
     page->RLatch();
     page_->RUnlatch();
     buffer_pool_manager_->UnpinPage(page_->GetPageId(), false);

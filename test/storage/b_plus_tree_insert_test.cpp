@@ -168,7 +168,9 @@ TEST(BPlusTreeTests, ConcurrentInsertTest) {
         [&](int id) {
           int base = id * KEYS_PER_THREAD;
           std::vector<int> keys(KEYS_PER_THREAD);
-          for (int i = 0; i < KEYS_PER_THREAD; i++) keys[i] = base + i;
+          for (int i = 0; i < KEYS_PER_THREAD; i++) {
+            keys[i] = base + i;
+          }
           std::shuffle(keys.begin(), keys.end(), std::default_random_engine(SEED + id));
 
           RID rid;
@@ -187,7 +189,9 @@ TEST(BPlusTreeTests, ConcurrentInsertTest) {
         i);
   }
 
-  for (int i = 0; i < N_THREADS; i++) threads[i].join();
+  for (auto &thread : threads) {
+    thread.join();
+  }
 
   GenericKey<8> index_key;
   std::vector<RID> rids;
@@ -223,7 +227,9 @@ TEST(BPlusTreeTests, ConcurrentInsertTest) {
         i);
   }
 
-  for (int i = 0; i < N_THREADS; i++) threads[i].join();
+  for (auto &thread : threads) {
+    thread.join();
+  }
 
   bpm->UnpinPage(HEADER_PAGE_ID, true);
   delete key_schema;

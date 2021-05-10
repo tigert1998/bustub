@@ -27,7 +27,7 @@ class IndexIterator {
   IndexIterator(Page *page, int key_index, BufferPoolManager *buffer_pool_manager);
   ~IndexIterator();
 
-  bool IsEnd();
+  bool isEnd();
 
   const MappingType &operator*();
 

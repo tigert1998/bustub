@@ -45,7 +45,9 @@ Page *BufferPoolManager::FetchPageImpl(page_id_t page_id) {
   std::unique_lock<std::mutex> guard(latch_);
   if (page_table_.count(page_id) >= 1) {
     auto frame_id = page_table_[page_id];
-    replacer_->Pin(frame_id);
+    if (pages_[frame_id].pin_count_ == 0) {
+      replacer_->Pin(frame_id);
+    }
     pages_[frame_id].pin_count_++;
     return pages_ + frame_id;
   }
@@ -75,9 +77,13 @@ Page *BufferPoolManager::FetchPageImpl(page_id_t page_id) {
 
 bool BufferPoolManager::UnpinPageImpl(page_id_t page_id, bool is_dirty) {
   std::unique_lock<std::mutex> guard(latch_);
-  if (page_table_.count(page_id) == 0) return false;
+  if (page_table_.count(page_id) == 0) {
+    return true;
+  }
   auto frame_id = page_table_[page_id];
-  if (pages_[frame_id].pin_count_ <= 0) return false;
+  if (pages_[frame_id].pin_count_ <= 0) {
+    return true;
+  }
 
   pages_[frame_id].pin_count_--;
   if (pages_[frame_id].pin_count_ == 0) {
@@ -164,8 +170,8 @@ void BufferPoolManager::FlushAllPagesImpl() {
 void BufferPoolManager::InternalFlushPage(frame_id_t frame_id) {
   if (pages_[frame_id].IsDirty()) {
     disk_manager_->WritePage(pages_[frame_id].GetPageId(), pages_[frame_id].GetData());
+    pages_[frame_id].is_dirty_ = false;
   }
-  pages_[frame_id].is_dirty_ = false;
 }
 
 }  // namespace bustub
