@@ -23,12 +23,14 @@ UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *
 
 void UpdateExecutor::Init() { child_executor_->Init(); }
 
-bool UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) {
-  if (!child_executor_->Next(tuple, rid)) {
-    return false;
+bool UpdateExecutor::Next([[maybe_unused]] Tuple *unused_tuple, RID *unused_rid) {
+  Tuple tuple;
+  RID rid;
+  while (child_executor_->Next(&tuple, &rid)) {
+    auto new_tuple = GenerateUpdatedTuple(tuple);
+    table_info_->table_->UpdateTuple(new_tuple, rid, exec_ctx_->GetTransaction());
+    // TODO(tigertang): update index
   }
-
-  *tuple = GenerateUpdatedTuple(*tuple);
-  return true;
+  return false;
 }
 }  // namespace bustub

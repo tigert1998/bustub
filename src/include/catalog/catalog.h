@@ -90,7 +90,7 @@ class Catalog {
   /** @return table metadata by name */
   TableMetadata *GetTable(const std::string &table_name) {
     if (names_.count(table_name) == 0) {
-      return nullptr;
+      throw std::out_of_range(std::string("GetTable(\"") + table_name + "\") out of range");
     }
     return GetTable(names_[table_name]);
   }
@@ -101,7 +101,7 @@ class Catalog {
     if (iter != tables_.end()) {
       return iter->second.get();
     }
-    return nullptr;
+    throw std::out_of_range(std::string("GetTable(") + std::to_string(table_oid) + ") out of range");
   }
 
   /**
@@ -121,6 +121,13 @@ class Catalog {
                          size_t keysize) {
     auto index_metadata = new IndexMetadata(index_name, table_name, &schema, key_attrs);
     auto index = std::make_unique<BPLUSTREE_INDEX_TYPE>(index_metadata, bpm_);
+
+    auto table_metadata = GetTable(table_name);
+    for (auto iter = table_metadata->table_->Begin(txn); iter != table_metadata->table_->End(); iter++) {
+      Tuple index_key = iter->KeyFromTuple(schema, key_schema, key_attrs);
+      index->InsertEntry(index_key, iter->GetRid(), txn);
+    }
+
     auto oid = next_index_oid_.fetch_add(1);
     auto index_info = std::make_unique<IndexInfo>(key_schema, index_name, std::move(index), oid, table_name, keysize);
 
@@ -130,11 +137,8 @@ class Catalog {
   }
 
   IndexInfo *GetIndex(const std::string &index_name, const std::string &table_name) {
-    if (index_names_.count(table_name) == 0) {
-      return nullptr;
-    }
-    if (index_names_[table_name].count(index_name) == 0) {
-      return nullptr;
+    if (index_names_.count(table_name) == 0 || index_names_[table_name].count(index_name) == 0) {
+      throw std::out_of_range(std::string("GetIndex(") + index_name + ", " + table_name + ") out of range");
     }
     auto oid = index_names_[table_name][index_name];
     return GetIndex(oid);
@@ -145,7 +149,7 @@ class Catalog {
     if (iter != indexes_.end()) {
       return iter->second.get();
     }
-    return nullptr;
+    throw std::out_of_range(std::string("GetIndex(") + std::to_string(index_oid) + ") out of range");
   }
 
   std::vector<IndexInfo *> GetTableIndexes(const std::string &table_name) {
