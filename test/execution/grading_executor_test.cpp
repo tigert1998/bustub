@@ -154,7 +154,7 @@ TEST_F(GradingExecutorTest, SimpleSeqScanTest) {
 
 // NOLINTNEXTLINE
 TEST_F(GradingExecutorTest, SimpleIndexScanTest) {
-  // SELECT colA, colB FROM test_1 WHERE colA > 500
+  // SELECT colA, colB FROM test_1 WHERE colA > 600
 
   // Construct query plan
   TableMetadata *table_info = GetExecutorContext()->GetCatalog()->GetTable("test_1");
