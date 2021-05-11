@@ -157,7 +157,7 @@ TEST(BufferPoolManagerTest, RandomTest) {
 
   char *data = new char[100 * PAGE_SIZE];
   for (size_t i = 0; i < 100 * PAGE_SIZE; i++) {
-    data[i] = static_cast<char>(rand());
+    data[i] = static_cast<char>(rand_r());
   }
 
   for (size_t i = 0; i < 100; i++) {
