@@ -29,12 +29,12 @@ bool LockManager::ShouldGrantXLock(RID rid, txn_id_t tid) {
 bool LockManager::ShouldGrantSLock(RID rid, txn_id_t tid) {
   auto &request_queue = this->lock_table_[rid].request_queue_;
 
-  for (auto iter = request_queue.begin(); iter != request_queue.end(); iter++) {
-    if (iter->txn_id_ == tid) {
-      iter->granted_ = true;
+  for (auto &request : request_queue) {
+    if (request.txn_id_ == tid) {
+      request.granted_ = true;
       return true;
     }
-    if (iter->lock_mode_ == LockMode::EXCLUSIVE) {
+    if (request.lock_mode_ == LockMode::EXCLUSIVE) {
       return false;
     }
   }
