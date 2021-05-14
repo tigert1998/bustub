@@ -140,6 +140,10 @@ class LockManager {
   std::unordered_map<RID, LockRequestQueue> lock_table_;
   /** Waits-for graph representation. */
   std::unordered_map<txn_id_t, std::vector<txn_id_t>> waits_for_;
+
+  bool ShouldGrantXLock(RID rid, txn_id_t tid);
+  bool ShouldGrantSLock(RID rid, txn_id_t tid);
+  bool ShouldUpgradeLock(RID rid, txn_id_t tid);
 };
 
 }  // namespace bustub
