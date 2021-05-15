@@ -12,10 +12,10 @@
 
 #include "concurrency/lock_manager.h"
 
-#include "concurrency/transaction_manager.h"
-
 #include <utility>
 #include <vector>
+
+#include "concurrency/transaction_manager.h"
 
 namespace bustub {
 
@@ -104,7 +104,9 @@ bool LockManager::LockUpgrade(Transaction *txn, const RID &rid) {
   txn->GetExclusiveLockSet()->emplace(rid);
 
   auto &request_queue = lock_table_[rid].request_queue_;
-  decltype(request_queue.begin()) txn_iter, insert_iter = request_queue.end();
+  using Iterator = decltype(request_queue.begin());
+  Iterator txn_iter;
+  Iterator insert_iter = request_queue.end();
   for (auto iter = request_queue.begin(); iter != request_queue.end(); iter++) {
     if (iter->txn_id_ == txn->GetTransactionId()) {
       txn_iter = iter;
@@ -183,7 +185,8 @@ void LockManager::RemoveEdge(txn_id_t t1, txn_id_t t2) {
 }
 
 bool LockManager::HasCycle(txn_id_t *txn_id) {
-  std::unordered_set<txn_id_t> visited, in_stack;
+  std::unordered_set<txn_id_t> visited;
+  std::unordered_set<txn_id_t> in_stack;
   std::deque<txn_id_t> stack;
   txn_id_t start;
 
@@ -191,14 +194,14 @@ bool LockManager::HasCycle(txn_id_t *txn_id) {
   for (const auto &pair : waits_for_) {
     txn_ids.push_back(pair.first);
   }
-  std::sort(txn_ids.begin(), txn_ids.end(), std::greater<txn_id_t>());
+  std::sort(txn_ids.begin(), txn_ids.end(), std::greater<>());
 
   for (auto x : txn_ids) {
-    std::sort(waits_for_[x].begin(), waits_for_[x].end(), std::greater<txn_id_t>());
-    if (visited.count(x)) {
+    std::sort(waits_for_[x].begin(), waits_for_[x].end(), std::greater<>());
+    if (visited.count(x) > 0) {
       continue;
     }
-    if (DFS(x, visited, in_stack, stack, &start)) {
+    if (DFS(x, &visited, &in_stack, &stack, &start)) {
       auto iter = std::find(stack.begin(), stack.end(), start);
       *txn_id = start;
       while (iter != stack.end()) {
@@ -211,25 +214,25 @@ bool LockManager::HasCycle(txn_id_t *txn_id) {
   return false;
 }
 
-bool LockManager::DFS(txn_id_t x, std::unordered_set<txn_id_t> &visited, std::unordered_set<txn_id_t> &in_stack,
-                      std::deque<txn_id_t> &stack, txn_id_t *start) {
-  stack.push_back(x);
-  visited.insert(x);
-  in_stack.insert(x);
+bool LockManager::DFS(txn_id_t x, std::unordered_set<txn_id_t> *visited, std::unordered_set<txn_id_t> *in_stack,
+                      std::deque<txn_id_t> *stack, txn_id_t *start) {
+  stack->push_back(x);
+  visited->insert(x);
+  in_stack->insert(x);
   for (auto y : waits_for_[x]) {
-    if (in_stack.count(y)) {
+    if (in_stack->count(y) > 0) {
       *start = y;
       return true;
     }
-    if (visited.count(y)) {
+    if (visited->count(y) > 0) {
       continue;
     }
     if (DFS(y, visited, in_stack, stack, start)) {
       return true;
     }
   }
-  in_stack.erase(x);
-  stack.pop_back();
+  in_stack->erase(x);
+  stack->pop_back();
   return false;
 }
 
@@ -237,7 +240,7 @@ std::vector<std::pair<txn_id_t, txn_id_t>> LockManager::GetEdgeList() {
   std::vector<std::pair<txn_id_t, txn_id_t>> edges;
   for (const auto &pair : waits_for_) {
     for (auto t2 : pair.second) {
-      edges.push_back({pair.first, t2});
+      edges.emplace_back(pair.first, t2);
     }
   }
   return edges;
@@ -253,7 +256,8 @@ void LockManager::RunCycleDetection() {
       // puts("==========");
 
       for (const auto &pair : lock_table_) {
-        std::vector<txn_id_t> granted, not_granted;
+        std::vector<txn_id_t> granted;
+        std::vector<txn_id_t> not_granted;
         for (const auto &request : pair.second.request_queue_) {
           if (request.granted_) {
             granted.push_back(request.txn_id_);
@@ -306,7 +310,7 @@ void LockManager::RunCycleDetection() {
           }
         }
 
-      next:;
+      next : {}
       }
 
       for (auto rid : rids) {

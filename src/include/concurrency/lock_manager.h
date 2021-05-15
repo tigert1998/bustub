@@ -14,11 +14,12 @@
 
 #include <algorithm>
 #include <condition_variable>  // NOLINT
+#include <deque>
 #include <list>
 #include <memory>
 #include <mutex>  // NOLINT
-#include <queue>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -146,8 +147,8 @@ class LockManager {
   bool ShouldGrantXLock(RID rid, txn_id_t tid);
   bool ShouldGrantSLock(RID rid, txn_id_t tid);
 
-  bool DFS(txn_id_t x, std::unordered_set<txn_id_t> &visited, std::unordered_set<txn_id_t> &in_stack,
-           std::deque<txn_id_t> &stack, txn_id_t *start);
+  bool DFS(txn_id_t x, std::unordered_set<txn_id_t> *visited, std::unordered_set<txn_id_t> *in_stack,
+           std::deque<txn_id_t> *stack, txn_id_t *start);
 };
 
 }  // namespace bustub
