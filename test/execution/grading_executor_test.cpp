@@ -37,6 +37,7 @@ class GradingExecutorTest : public ::testing::Test {
     // For each test, we create a new DiskManager, BufferPoolManager, TransactionManager, and Catalog.
     disk_manager_ = std::make_unique<DiskManager>("executor_test.db");
     bpm_ = std::make_unique<BufferPoolManager>(2560, disk_manager_.get());
+    lock_manager_ = std::make_unique<LockManager>();
     page_id_t page_id;
     bpm_->NewPage(&page_id);
     txn_mgr_ = std::make_unique<TransactionManager>(lock_manager_.get(), log_manager_.get());

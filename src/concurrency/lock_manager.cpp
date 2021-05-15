@@ -45,7 +45,11 @@ bool LockManager::ShouldGrantSLock(RID rid, txn_id_t tid) {
 }
 
 bool LockManager::LockShared(Transaction *txn, const RID &rid) {
-  if (txn->GetState() == TransactionState::SHRINKING) {
+  if (txn->GetIsolationLevel() == IsolationLevel::READ_UNCOMMITTED) {
+    txn->SetState(TransactionState::ABORTED);
+    throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCKSHARED_ON_READ_UNCOMMITTED);
+  }
+  if (txn->GetState() == TransactionState::SHRINKING && txn->GetIsolationLevel() != IsolationLevel::READ_COMMITTED) {
     txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_ON_SHRINKING);
   }
@@ -135,11 +139,13 @@ bool LockManager::LockUpgrade(Transaction *txn, const RID &rid) {
 }
 
 bool LockManager::Unlock(Transaction *txn, const RID &rid) {
-  txn->GetSharedLockSet()->erase(rid);
-  txn->GetExclusiveLockSet()->erase(rid);
-  if (txn->GetState() == TransactionState::GROWING) {
+  if ((txn->GetSharedLockSet()->count(rid) > 0 && txn->GetIsolationLevel() != IsolationLevel::READ_COMMITTED) ||
+      txn->GetExclusiveLockSet()->count(rid) > 0) {
     txn->SetState(TransactionState::SHRINKING);
   }
+
+  txn->GetSharedLockSet()->erase(rid);
+  txn->GetExclusiveLockSet()->erase(rid);
 
   std::unique_lock lock(latch_);
 
@@ -151,9 +157,7 @@ bool LockManager::Unlock(Transaction *txn, const RID &rid) {
     }
   }
 
-  if (iter == request_queue.end()) {
-    return false;
-  }
+  BUSTUB_ASSERT(iter != request_queue.end(), "");
 
   request_queue.erase(iter);
 
@@ -194,10 +198,10 @@ bool LockManager::HasCycle(txn_id_t *txn_id) {
   for (const auto &pair : waits_for_) {
     txn_ids.push_back(pair.first);
   }
-  std::sort(txn_ids.begin(), txn_ids.end(), std::greater<>());
+  std::sort(txn_ids.begin(), txn_ids.end());
 
   for (auto x : txn_ids) {
-    std::sort(waits_for_[x].begin(), waits_for_[x].end(), std::greater<>());
+    std::sort(waits_for_[x].begin(), waits_for_[x].end());
     if (visited.count(x) > 0) {
       continue;
     }
@@ -253,8 +257,6 @@ void LockManager::RunCycleDetection() {
       std::unique_lock<std::mutex> l(latch_);
       waits_for_.clear();
 
-      // puts("==========");
-
       for (const auto &pair : lock_table_) {
         std::vector<txn_id_t> granted;
         std::vector<txn_id_t> not_granted;
@@ -269,7 +271,6 @@ void LockManager::RunCycleDetection() {
         for (auto x : not_granted) {
           for (auto y : granted) {
             AddEdge(x, y);
-            // printf("(%d, %d)\n", x, y);
           }
         }
       }
@@ -288,11 +289,6 @@ void LockManager::RunCycleDetection() {
 
         to_abort.push_back(txn_id);
       }
-
-      // for (auto txn_id : to_abort) {
-      // printf("%d, ", txn_id);
-      // }
-      // puts("");
 
       std::unordered_set<RID> rids;
       for (auto txn_id : to_abort) {
