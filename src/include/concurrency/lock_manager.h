@@ -17,6 +17,7 @@
 #include <list>
 #include <memory>
 #include <mutex>  // NOLINT
+#include <queue>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -140,10 +141,13 @@ class LockManager {
   std::unordered_map<RID, LockRequestQueue> lock_table_;
   /** Waits-for graph representation. */
   std::unordered_map<txn_id_t, std::vector<txn_id_t>> waits_for_;
+  // std::unordered_set<txn_id_t>
 
   bool ShouldGrantXLock(RID rid, txn_id_t tid);
   bool ShouldGrantSLock(RID rid, txn_id_t tid);
-  bool ShouldUpgradeLock(RID rid, txn_id_t tid);
+
+  bool DFS(txn_id_t x, std::unordered_set<txn_id_t> &visited, std::unordered_set<txn_id_t> &in_stack,
+           std::deque<txn_id_t> &stack, txn_id_t *start);
 };
 
 }  // namespace bustub
