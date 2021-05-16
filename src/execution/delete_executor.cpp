@@ -29,6 +29,11 @@ bool DeleteExecutor::Next([[maybe_unused]] Tuple *unused_tuple, RID *unused_rid)
   RID rid;
 
   while (child_executor_->Next(&tuple, &rid)) {
+    if (exec_ctx_->GetTransaction()->IsSharedLocked(rid)) {
+      exec_ctx_->GetLockManager()->LockUpgrade(exec_ctx_->GetTransaction(), rid);
+    } else {
+      exec_ctx_->GetLockManager()->LockExclusive(exec_ctx_->GetTransaction(), rid);
+    }
     table_metadata_->table_->MarkDelete(rid, exec_ctx_->GetTransaction());
     for (auto index_info : index_infos_) {
       auto key_attrs = index_info->index_->GetKeyAttrs();

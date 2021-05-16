@@ -19,6 +19,7 @@ SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNod
     : AbstractExecutor(exec_ctx), plan_(plan) {
   auto oid = plan_->GetTableOid();
   table_metadata_ = exec_ctx_->GetCatalog()->GetTable(oid);
+  txn_ = exec_ctx_->GetTransaction();
 }
 
 void SeqScanExecutor::Init() {
@@ -30,7 +31,16 @@ bool SeqScanExecutor::Next(Tuple *tuple, RID *rid) {
     if (*iter_ == table_metadata_->table_->End()) {
       return false;
     }
+
+    if (auto level = txn_->GetIsolationLevel();
+        level == IsolationLevel::READ_COMMITTED || level == IsolationLevel::REPEATABLE_READ) {
+      exec_ctx_->GetLockManager()->LockShared(txn_, (*iter_)->GetRid());
+    }
     *tuple = **iter_;
+    if (auto level = txn_->GetIsolationLevel(); level == IsolationLevel::READ_COMMITTED) {
+      exec_ctx_->GetLockManager()->Unlock(txn_, (*iter_)->GetRid());
+    }
+
     auto predicate = plan_->GetPredicate();
     bool res = predicate == nullptr || predicate->Evaluate(tuple, &table_metadata_->schema_).GetAs<bool>();
 

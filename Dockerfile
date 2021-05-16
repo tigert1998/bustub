@@ -26,6 +26,7 @@ RUN apt-get -y update && \
       doxygen \
       git \
       g++-7 \
+      htop \
       openssh-server \
       pkg-config \
       valgrind \

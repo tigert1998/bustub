@@ -32,6 +32,8 @@ void InsertExecutor::Init() {
 void InsertExecutor::InternalInsertTuple(const Tuple &tuple) {
   RID rid;
   table_metadata_->table_->InsertTuple(tuple, &rid, exec_ctx_->GetTransaction());
+  // TODO(tigertang): inappropriate position of locking
+  exec_ctx_->GetLockManager()->LockExclusive(exec_ctx_->GetTransaction(), rid);
   for (auto index_info : index_infos_) {
     auto key_attrs = index_info->index_->GetKeyAttrs();
     std::vector<Value> key_values(key_attrs.size());

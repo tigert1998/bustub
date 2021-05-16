@@ -45,6 +45,9 @@ bool LockManager::ShouldGrantSLock(RID rid, txn_id_t tid) {
 }
 
 bool LockManager::LockShared(Transaction *txn, const RID &rid) {
+  if (txn->IsSharedLocked(rid)) {
+    return true;
+  }
   if (txn->GetIsolationLevel() == IsolationLevel::READ_UNCOMMITTED) {
     txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCKSHARED_ON_READ_UNCOMMITTED);
@@ -71,6 +74,9 @@ bool LockManager::LockShared(Transaction *txn, const RID &rid) {
 }
 
 bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
+  if (txn->IsExclusiveLocked(rid)) {
+    return true;
+  }
   if (txn->GetState() == TransactionState::SHRINKING) {
     txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_ON_SHRINKING);
@@ -93,6 +99,9 @@ bool LockManager::LockExclusive(Transaction *txn, const RID &rid) {
 }
 
 bool LockManager::LockUpgrade(Transaction *txn, const RID &rid) {
+  if (txn->IsExclusiveLocked(rid)) {
+    return true;
+  }
   if (txn->GetState() == TransactionState::SHRINKING) {
     txn->SetState(TransactionState::ABORTED);
     throw TransactionAbortException(txn->GetTransactionId(), AbortReason::LOCK_ON_SHRINKING);
@@ -139,8 +148,9 @@ bool LockManager::LockUpgrade(Transaction *txn, const RID &rid) {
 }
 
 bool LockManager::Unlock(Transaction *txn, const RID &rid) {
-  if ((txn->GetSharedLockSet()->count(rid) > 0 && txn->GetIsolationLevel() != IsolationLevel::READ_COMMITTED) ||
-      txn->GetExclusiveLockSet()->count(rid) > 0) {
+  if (txn->GetState() != TransactionState::ABORTED &&
+      ((txn->GetSharedLockSet()->count(rid) > 0 && txn->GetIsolationLevel() != IsolationLevel::READ_COMMITTED) ||
+       txn->GetExclusiveLockSet()->count(rid) > 0)) {
     txn->SetState(TransactionState::SHRINKING);
   }
 
@@ -157,7 +167,9 @@ bool LockManager::Unlock(Transaction *txn, const RID &rid) {
     }
   }
 
-  BUSTUB_ASSERT(iter != request_queue.end(), "");
+  if (iter == request_queue.end()) {
+    return false;
+  }
 
   request_queue.erase(iter);
 
