@@ -156,8 +156,9 @@ TEST(BufferPoolManagerTest, RandomTest) {
   }
 
   char *data = new char[100 * PAGE_SIZE];
+  unsigned int seed = 10086;
   for (size_t i = 0; i < 100 * PAGE_SIZE; i++) {
-    data[i] = static_cast<char>(rand_r());
+    data[i] = static_cast<char>(rand_r(&seed));
   }
 
   for (size_t i = 0; i < 100; i++) {

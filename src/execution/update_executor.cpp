@@ -28,6 +28,11 @@ bool UpdateExecutor::Next([[maybe_unused]] Tuple *unused_tuple, RID *unused_rid)
   RID rid;
   while (child_executor_->Next(&tuple, &rid)) {
     auto new_tuple = GenerateUpdatedTuple(tuple);
+    if (exec_ctx_->GetTransaction()->IsSharedLocked(rid)) {
+      exec_ctx_->GetLockManager()->LockUpgrade(exec_ctx_->GetTransaction(), rid);
+    } else {
+      exec_ctx_->GetLockManager()->LockExclusive(exec_ctx_->GetTransaction(), rid);
+    }
     table_info_->table_->UpdateTuple(new_tuple, rid, exec_ctx_->GetTransaction());
     // TODO(tigertang): update index
   }

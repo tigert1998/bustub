@@ -52,6 +52,6 @@ class InsertExecutor : public AbstractExecutor {
   std::vector<IndexInfo *> index_infos_;
   std::unique_ptr<AbstractExecutor> child_executor_;
 
-  void InternalInsertTuple(const Tuple &tuple);
+  void InternalInsertTuple(Tuple tuple);
 };
 }  // namespace bustub

@@ -51,5 +51,6 @@ class IndexScanExecutor : public AbstractExecutor {
   IndexType *index_;
   std::unique_ptr<IndexIteratorType> iter_;
   TableMetadata *table_metadata_;
+  Transaction *txn_;
 };
 }  // namespace bustub

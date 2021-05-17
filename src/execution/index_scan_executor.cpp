@@ -17,6 +17,7 @@ IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanP
   auto index_info = exec_ctx_->GetCatalog()->GetIndex(plan_->GetIndexOid());
   index_ = dynamic_cast<IndexType *>(index_info->index_.get());
   table_metadata_ = exec_ctx_->GetCatalog()->GetTable(index_info->table_name_);
+  txn_ = exec_ctx_->GetTransaction();
 }
 
 void IndexScanExecutor::Init() { iter_ = std::make_unique<IndexIteratorType>(index_->GetBeginIterator()); }
@@ -24,7 +25,16 @@ void IndexScanExecutor::Init() { iter_ = std::make_unique<IndexIteratorType>(ind
 bool IndexScanExecutor::Next(Tuple *tuple, RID *rid) {
   while (!iter_->isEnd()) {
     *rid = (**iter_).second;
+
+    if (auto level = txn_->GetIsolationLevel();
+        level == IsolationLevel::READ_COMMITTED || level == IsolationLevel::REPEATABLE_READ) {
+      exec_ctx_->GetLockManager()->LockShared(txn_, *rid);
+    }
     table_metadata_->table_->GetTuple(*rid, tuple, exec_ctx_->GetTransaction());
+    if (auto level = txn_->GetIsolationLevel(); level == IsolationLevel::READ_COMMITTED) {
+      exec_ctx_->GetLockManager()->Unlock(txn_, *rid);
+    }
+
     iter_->operator++();
 
     auto predicate = plan_->GetPredicate();

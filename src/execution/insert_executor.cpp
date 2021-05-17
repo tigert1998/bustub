@@ -29,17 +29,19 @@ void InsertExecutor::Init() {
   }
 }
 
-void InsertExecutor::InternalInsertTuple(const Tuple &tuple) {
+void InsertExecutor::InternalInsertTuple(Tuple tuple) {
   RID rid;
   table_metadata_->table_->InsertTuple(tuple, &rid, exec_ctx_->GetTransaction());
+  // TODO(tigertang): inappropriate position of locking
+  exec_ctx_->GetLockManager()->LockExclusive(exec_ctx_->GetTransaction(), rid);
   for (auto index_info : index_infos_) {
-    auto key_attrs = index_info->index_->GetKeyAttrs();
-    std::vector<Value> key_values(key_attrs.size());
-    for (size_t i = 0; i < key_values.size(); i++) {
-      key_values[i] = tuple.GetValue(&table_metadata_->schema_, key_attrs[i]);
-    }
-    Tuple key_tuple(key_values, &index_info->key_schema_);
-    index_info->index_->InsertEntry(tuple, rid, exec_ctx_->GetTransaction());
+    auto key_tuple =
+        tuple.KeyFromTuple(table_metadata_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs());
+
+    exec_ctx_->GetTransaction()->AppendIndexWriteRecord(IndexWriteRecord(
+        rid, table_metadata_->oid_, WType::INSERT, tuple, index_info->index_oid_, exec_ctx_->GetCatalog()));
+
+    index_info->index_->InsertEntry(key_tuple, rid, exec_ctx_->GetTransaction());
   }
 }
 

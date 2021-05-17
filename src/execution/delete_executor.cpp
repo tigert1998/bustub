@@ -29,14 +29,18 @@ bool DeleteExecutor::Next([[maybe_unused]] Tuple *unused_tuple, RID *unused_rid)
   RID rid;
 
   while (child_executor_->Next(&tuple, &rid)) {
+    if (exec_ctx_->GetTransaction()->IsSharedLocked(rid)) {
+      exec_ctx_->GetLockManager()->LockUpgrade(exec_ctx_->GetTransaction(), rid);
+    } else {
+      exec_ctx_->GetLockManager()->LockExclusive(exec_ctx_->GetTransaction(), rid);
+    }
     table_metadata_->table_->MarkDelete(rid, exec_ctx_->GetTransaction());
     for (auto index_info : index_infos_) {
-      auto key_attrs = index_info->index_->GetKeyAttrs();
-      std::vector<Value> key_values(key_attrs.size());
-      for (size_t i = 0; i < key_values.size(); i++) {
-        key_values[i] = tuple.GetValue(&table_metadata_->schema_, key_attrs[i]);
-      }
-      Tuple key_tuple(key_values, &index_info->key_schema_);
+      auto key_tuple =
+          tuple.KeyFromTuple(table_metadata_->schema_, index_info->key_schema_, index_info->index_->GetKeyAttrs());
+
+      exec_ctx_->GetTransaction()->AppendIndexWriteRecord(IndexWriteRecord(
+          rid, table_metadata_->oid_, WType::DELETE, tuple, index_info->index_oid_, exec_ctx_->GetCatalog()));
       index_info->index_->DeleteEntry(key_tuple, rid, exec_ctx_->GetTransaction());
     }
   }
